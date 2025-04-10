@@ -44,6 +44,6 @@ import (
 func main() {
     now := gomoment.NewMoment(time.now()).Must("YYYY-MM-DD HH:mm:ss")
 
-    // now: 2025-04-10 12:54:23
+    // now: 2025-04-10 12:54:23 or panic
 }
 ```
