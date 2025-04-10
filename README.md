@@ -1,6 +1,9 @@
 # Go Moment
 
-* It's highly inspired by moment.js
+* It's highly inspired from moment.js
+    * It was weird to me formatting time value with such strings; '2006-~~~'
+    * or RFC format either. I'm familiar with moment.js
+* gomoment creates Formatted time strings with formats
 
 ## Installation
 
