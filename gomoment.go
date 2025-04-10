@@ -20,6 +20,22 @@ var supportedFormats = []string{
 	"ss", "s", "SSS", "A", "a", "ZZ", "Z",
 }
 
+// Date Format List for parsing date string
+var dateFormats = []string{
+	"2006-01-02",
+	"2006/01/02",
+	"2006-01-02 15:04:05",
+	"2006/01/02 15:04:05",
+	"2006-01-02T15:04:05",
+	"2006-01-02T15:04:05Z",
+	"2006-01-02T15:04:05-07:00",
+	"01/02/2006",
+	"01-02-2006",
+	"01/02/2006 15:04:05",
+	"01-02-2006 15:04:05",
+	"15:04:05",
+}
+
 // Make Formatted time string according to the given format
 func (m *Moment) Format(format string) (string, error) {
 	// Same usage with moment.js
@@ -75,9 +91,47 @@ func (m *Moment) Format(format string) (string, error) {
 	return m.t.Format(result), nil
 }
 
+func (m *Moment) Time() time.Time {
+	return m.t
+}
+
 // Create Moment Instance
-func NewMoment(t time.Time) *Moment {
-	return &Moment{t: t}
+func NewMoment(args ...interface{}) (*Moment, error) {
+	if len(args) == 0 {
+		// return current time without any argument
+		return &Moment{t: time.Now()}, nil
+	}
+
+	switch v := args[0].(type) {
+	case string:
+		// Pasre string
+		return Parse(v)
+	case time.Time:
+		// time.Time
+		return &Moment{t: v}, nil
+	default:
+		return nil, fmt.Errorf("invalid argument type: %T", args[0])
+	}
+}
+
+// Parse String in order to create momemnt
+func Parse(dateStr string) (*Moment, error) {
+	for _, layout := range dateFormats {
+		t, err := time.Parse(layout, dateStr)
+		if err == nil {
+			return &Moment{t: t}, nil
+		}
+	}
+
+	// Retry with local time
+	for _, layout := range dateFormats {
+		t, err := time.ParseInLocation(layout, dateStr, time.Local)
+		if err == nil {
+			return &Moment{t: t}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("invalid time format: %s", dateStr)
 }
 
 // Create Moment Instance with Current Time
@@ -88,6 +142,14 @@ func Now() *Moment {
 // Verify errors and throw panic if it exists
 // or return formatted formatted strings
 func (m *Moment) Must(format string) string {
+	result, err := m.Format(format)
+	if err != nil {
+		panic(err)
+	}
+	return result
+}
+
+func (m *Moment) MustFormat(format string) string {
 	result, err := m.Format(format)
 	if err != nil {
 		panic(err)

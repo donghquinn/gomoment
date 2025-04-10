@@ -15,9 +15,9 @@ go get -u github.com/donghquinn/gomement
 
 * Same as moment.js
 * Default Format is YYYY-MM-DD HH:mm:ss
+* Default Timezone is UTC
 
 ```go
-
 import (
     	"time"
         "github.com/donghquinn/gomoment"
