@@ -154,9 +154,6 @@ func TestMomentTime(t *testing.T) {
 	now, _ := gomoment.NewMoment() // Current time moment
 	timeNow := time.Now()
 
-	t.Logf("Moment Now: %v", now)
-	t.Logf("Time Now :%v", timeNow)
-
 	if now.Time() == timeNow {
 		t.Fatalf("not accurate moment: %v and now: %v", now, timeNow)
 	}
