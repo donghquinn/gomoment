@@ -8,38 +8,15 @@ import (
 	"time"
 )
 
-// Save Time value
+// Moment wraps time.Time to provide moment.js-like functionality
 type Moment struct {
 	t time.Time
 }
 
-// Supporting Time formats
-var supportedFormats = []string{
-	"YYYY", "YY", "MM", "M", "DD", "D",
-	"HH", "H", "hh", "h", "mm", "m",
-	"ss", "s", "SSS", "A", "a", "ZZ", "Z",
-}
-
-// Date Format List for parsing date string
-var dateFormats = []string{
-	"2006-01-02",
-	"2006/01/02",
-	"2006-01-02 15:04:05",
-	"2006/01/02 15:04:05",
-	"2006-01-02T15:04:05",
-	"2006-01-02T15:04:05Z",
-	"2006-01-02T15:04:05-07:00",
-	"01/02/2006",
-	"01-02-2006",
-	"01/02/2006 15:04:05",
-	"01-02-2006 15:04:05",
-	"15:04:05",
-}
-
-// Make Formatted time string according to the given format
-func (m *Moment) Format(format string) (string, error) {
-	// Same usage with moment.js
-	replacements := map[string]string{
+// Package-level variables for performance optimization
+var (
+	// replacements maps moment.js tokens to Go time format tokens
+	replacements = map[string]string{
 		"YYYY": "2006",
 		"YY":   "06",
 		"MM":   "01",
@@ -61,61 +38,107 @@ func (m *Moment) Format(format string) (string, error) {
 		"Z":    "-07:00",
 	}
 
-	tokens := make([]string, 0, len(replacements))
+	// sortedTokens holds tokens sorted by length (longest first) to prevent replacement conflicts
+	sortedTokens []string
+
+	// supportedTokens holds all supported format tokens for validation
+	supportedTokens []string
+
+	// alphaRegex is pre-compiled regex for finding alphabetic tokens
+	alphaRegex = regexp.MustCompile("[a-zA-Z]+")
+
+	// dateFormats lists supported input date formats for parsing
+	dateFormats = []string{
+		"2006-01-02",
+		"2006/01/02",
+		"2006-01-02 15:04:05",
+		"2006/01/02 15:04:05",
+		"2006-01-02T15:04:05",
+		"2006-01-02T15:04:05Z",
+		"2006-01-02T15:04:05-07:00",
+		"01/02/2006",
+		"01-02-2006",
+		"01/02/2006 15:04:05",
+		"01-02-2006 15:04:05",
+		"15:04:05",
+	}
+)
+
+// init initializes package-level variables for optimal performance
+func init() {
+	// Create sorted tokens slice
+	sortedTokens = make([]string, 0, len(replacements))
+	supportedTokens = make([]string, 0, len(replacements))
+
 	for token := range replacements {
-		tokens = append(tokens, token)
+		sortedTokens = append(sortedTokens, token)
+		supportedTokens = append(supportedTokens, token)
 	}
 
-	sort.Slice(tokens, func(i, j int) bool {
-		return len(tokens[i]) > len(tokens[j])
+	// Sort by length (longest first) to prevent replacement conflicts
+	sort.Slice(sortedTokens, func(i, j int) bool {
+		return len(sortedTokens[i]) > len(sortedTokens[j])
 	})
 
-	// Validate input formats
+	// Sort supported tokens for consistent error messages
+	sort.Strings(supportedTokens)
+}
+
+// Format returns a formatted time string using moment.js-like format tokens.
+// Supported tokens: YYYY, YY, MM, M, DD, D, HH, H, hh, h, mm, m, ss, s, SSS, A, a, ZZ, Z
+func (m *Moment) Format(format string) (string, error) {
+	// Validate input format tokens
 	tmpFormat := format
-	for _, token := range supportedFormats {
+	for _, token := range supportedTokens {
 		tmpFormat = strings.ReplaceAll(tmpFormat, token, "")
 	}
 
-	alphaRegex := regexp.MustCompile("[a-zA-Z]+")
+	// Find any remaining alphabetic tokens (invalid)
 	invalidTokens := alphaRegex.FindAllString(tmpFormat, -1)
-
 	if len(invalidTokens) > 0 {
-		return "", fmt.Errorf("invalid token: %v", invalidTokens)
+		return "", fmt.Errorf("unsupported format tokens: %v (supported tokens: %v)", invalidTokens, supportedTokens)
 	}
 
+	// Replace moment.js tokens with Go time format tokens
 	result := format
-	for _, token := range tokens {
+	for _, token := range sortedTokens {
 		result = strings.ReplaceAll(result, token, replacements[token])
 	}
 
 	return m.t.Format(result), nil
 }
 
+// Time returns the underlying time.Time value
 func (m *Moment) Time() time.Time {
 	return m.t
 }
 
-// Create Moment Instance
+// NewMoment creates a new Moment instance.
+// With no arguments, returns current time.
+// With string argument, parses the date string.
+// With time.Time argument, wraps the time value.
 func NewMoment(args ...interface{}) (*Moment, error) {
 	if len(args) == 0 {
-		// return current time without any argument
+		// Return current time without any argument
 		return &Moment{t: time.Now()}, nil
 	}
 
 	switch v := args[0].(type) {
 	case string:
-		// Pasre string
+		// Parse string
 		return Parse(v)
 	case time.Time:
-		// time.Time
+		// Wrap time.Time
 		return &Moment{t: v}, nil
 	default:
-		return nil, fmt.Errorf("invalid argument type: %T", args[0])
+		return nil, fmt.Errorf("unsupported argument type: %T (supported: string, time.Time, or no arguments)", args[0])
 	}
 }
 
-// Parse String in order to create momemnt
+// Parse creates a Moment from a date string.
+// Supports various common date formats including ISO 8601.
 func Parse(dateStr string) (*Moment, error) {
+	// Try parsing with UTC first
 	for _, layout := range dateFormats {
 		t, err := time.Parse(layout, dateStr)
 		if err == nil {
@@ -123,7 +146,7 @@ func Parse(dateStr string) (*Moment, error) {
 		}
 	}
 
-	// Retry with local time
+	// Retry with local timezone
 	for _, layout := range dateFormats {
 		t, err := time.ParseInLocation(layout, dateStr, time.Local)
 		if err == nil {
@@ -131,25 +154,17 @@ func Parse(dateStr string) (*Moment, error) {
 		}
 	}
 
-	return nil, fmt.Errorf("invalid time format: %s", dateStr)
+	return nil, fmt.Errorf(`unable to parse date string "%s" (supported formats: YYYY-MM-DD, YYYY/MM/DD, RFC3339, etc.)`, dateStr)
 }
 
-// Create Moment Instance with Current Time
+// Now creates a new Moment instance with the current time
 func Now() *Moment {
 	return &Moment{t: time.Now()}
 }
 
-// Verify errors and throw panic if it exists
-// or return formatted formatted strings
+// Must formats the time using the given format string and panics on error.
+// Use this when you are certain the format string is valid.
 func (m *Moment) Must(format string) string {
-	result, err := m.Format(format)
-	if err != nil {
-		panic(err)
-	}
-	return result
-}
-
-func (m *Moment) MustFormat(format string) string {
 	result, err := m.Format(format)
 	if err != nil {
 		panic(err)
