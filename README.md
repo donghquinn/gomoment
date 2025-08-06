@@ -10,6 +10,7 @@ If you're tired of Go's unusual date formatting with reference time `2006-01-02 
 ## Features
 
 - 🕐 **Familiar syntax** - Use moment.js-like format tokens (`YYYY`, `MM`, `DD`, etc.)
+- 🌍 **Timezone support** - Convert between timezones with `TZ("KST")`, `UTC()`, `Local()`
 - 📅 **Flexible parsing** - Parse various date string formats automatically
 - 🛡️ **Type safe** - Full Go type safety with error handling
 - 🚀 **Zero dependencies** - Uses only Go standard library
@@ -141,6 +142,77 @@ GoMoment can parse various date string formats automatically:
 ```go
 moment, _ := gomoment.NewMoment()
 t := moment.Time() // Returns time.Time
+```
+
+### Timezone Support
+
+GoMoment provides comprehensive timezone support with convenient methods:
+
+#### Convert to Specific Timezone
+
+```go
+// Create moment from UTC time
+moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z")
+
+// Convert UTC to Korean time - exactly as requested!
+kstMoment, _ := moment.TZ("KST")
+result, _ := kstMoment.Format("YYYY-MM-DD")
+fmt.Println(result) // 2023-05-15
+
+// With time included
+timeResult, _ := kstMoment.Format("YYYY-MM-DD HH:mm")
+fmt.Println(timeResult) // 2023-05-15 23:30 (14:30 UTC + 9 hours)
+
+// Other timezone examples
+estMoment, _ := moment.TZ("EST")
+fmt.Println(estMoment.Must("YYYY-MM-DD HH:mm")) // 2023-05-15 10:30
+
+// Use full timezone names
+nyMoment, _ := moment.TZ("America/New_York")
+tokyoMoment, _ := moment.TZ("Asia/Tokyo")
+```
+
+#### Supported Timezone Abbreviations
+
+| Abbreviation | Full Name | Description |
+|--------------|-----------|-------------|
+| `UTC` | UTC | Coordinated Universal Time |
+| `GMT` | GMT | Greenwich Mean Time |
+| `KST` | Asia/Seoul | Korea Standard Time |
+| `JST` | Asia/Tokyo | Japan Standard Time |
+| `EST` | America/New_York | Eastern Time |
+| `PST` | America/Los_Angeles | Pacific Time |
+| `CST` | America/Chicago | Central Time |
+| `MST` | America/Denver | Mountain Time |
+| `CET` | Europe/Paris | Central European Time |
+| `IST` | Asia/Kolkata | India Standard Time |
+
+#### Quick Timezone Conversions
+
+```go
+moment, _ := gomoment.NewMoment()
+
+// Convert to UTC
+utcMoment := moment.UTC()
+
+// Convert to local timezone
+localMoment := moment.Local()
+
+// Get timezone information
+name, offset := moment.Zone()
+fmt.Printf("Timezone: %s, Offset: %d seconds\n", name, offset)
+
+// Get just the offset
+offset := moment.Offset() // Returns seconds east of UTC
+```
+
+#### Chaining Operations
+
+```go
+// Chain timezone conversion with formatting
+moment, _ := gomoment.NewMoment()
+kstMoment, _ := moment.TZ("KST")
+formatted, _ := kstMoment.Format("YYYY-MM-DD HH:mm") // Korean time formatted
 ```
 
 ## Error Handling
