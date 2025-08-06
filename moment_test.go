@@ -417,3 +417,129 @@ func ExampleMoment_Must() {
 	formatted := moment.Must("YYYY-MM-DD")
 	_ = formatted // 2023-05-15
 }
+func TestTZ_CommonTimezones(t *testing.T) {
+	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z") // UTC time
+	
+	tests := []struct {
+		name     string
+		timezone string
+		wantHour int
+	}{
+		{"Korea Standard Time", "KST", 23},  // UTC+9
+		{"Japan Standard Time", "JST", 23},  // UTC+9
+		{"Eastern Time", "EST", 10},          // UTC-4 (EDT in May)
+		{"Pacific Time", "PST", 7},           // UTC-7 (PDT in May)
+		{"UTC", "UTC", 14},                   // UTC+0
+		{"GMT", "GMT", 14},                   // UTC+0
+	}
+	
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tzMoment, err := moment.TZ(tt.timezone)
+			if err != nil {
+				t.Fatalf("TZ(%q) failed: %v", tt.timezone, err)
+			}
+			
+			// Check that timezone conversion worked
+			if tz := tzMoment.Time().Location().String(); tz == "" {
+				t.Errorf("TZ(%q) did not set timezone", tt.timezone)
+			}
+		})
+	}
+}
+
+func TestTZ_FullTimezoneNames(t *testing.T) {
+	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z") // UTC time
+	
+	tzMoment, err := moment.TZ("America/New_York")
+	if err != nil {
+		t.Fatalf("TZ(America/New_York) failed: %v", err)
+	}
+	
+	if loc := tzMoment.Time().Location().String(); loc != "America/New_York" {
+		t.Errorf("TZ(America/New_York) location = %v, want America/New_York", loc)
+	}
+}
+
+func TestTZ_InvalidTimezone(t *testing.T) {
+	moment, _ := gomoment.NewMoment(testTime)
+	
+	_, err := moment.TZ("INVALID/Timezone")
+	if err == nil {
+		t.Error("TZ with invalid timezone should return error")
+	}
+	
+	expectedMsg := "invalid timezone"
+	if !strings.Contains(err.Error(), expectedMsg) {
+		t.Errorf("TZ error = %v, want to contain %q", err, expectedMsg)
+	}
+}
+
+func TestUTC(t *testing.T) {
+	moment, _ := gomoment.NewMoment(testTimeLocal)
+	
+	utcMoment := moment.UTC()
+	
+	if loc := utcMoment.Time().Location(); loc != time.UTC {
+		t.Errorf("UTC() location = %v, want UTC", loc)
+	}
+}
+
+func TestLocal(t *testing.T) {
+	moment, _ := gomoment.NewMoment(testTime) // UTC time
+	
+	localMoment := moment.Local()
+	
+	if loc := localMoment.Time().Location(); loc != time.Local {
+		t.Errorf("Local() location = %v, want Local", loc)
+	}
+}
+
+func TestZone(t *testing.T) {
+	moment, _ := gomoment.NewMoment(testTime)
+	
+	name, offset := moment.Zone()
+	
+	if name == "" {
+		t.Error("Zone() returned empty timezone name")
+	}
+	
+	// UTC should have 0 offset
+	if testTime.Location() == time.UTC && offset != 0 {
+		t.Errorf("Zone() offset = %d, want 0 for UTC", offset)
+	}
+}
+
+func TestOffset(t *testing.T) {
+	moment, _ := gomoment.NewMoment(testTime)
+	
+	offset := moment.Offset()
+	
+	// UTC should have 0 offset
+	if testTime.Location() == time.UTC && offset != 0 {
+		t.Errorf("Offset() = %d, want 0 for UTC", offset)
+	}
+}
+
+func TestTimezoneChaining(t *testing.T) {
+	// Test chaining timezone conversions with formatting
+	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z")
+	
+	// Convert to KST and format
+	kstMoment, err := moment.TZ("KST")
+	if err != nil {
+		t.Fatalf("TZ(KST) failed: %v", err)
+	}
+	
+	formatted, err := kstMoment.Format("YYYY-MM-DD HH:mm")
+	if err != nil {
+		t.Fatalf("Format after TZ failed: %v", err)
+	}
+	
+	// Should show Korean time (UTC+9)
+	expected := "2023-05-15 23:30" // 14:30 UTC + 9 hours
+	if formatted != expected {
+		t.Errorf("KST formatted time = %q, want %q", formatted, expected)
+	}
+}
+
