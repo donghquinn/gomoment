@@ -395,7 +395,9 @@ func BenchmarkFormat_Simple(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		moment.Format("YYYY-MM-DD")
+		if _, err := moment.Format("YYYY-MM-DD"); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -404,13 +406,17 @@ func BenchmarkFormat_Complex(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		moment.Format("YYYY-MM-DD HH:mm:ss Z")
+		if _, err := moment.Format("YYYY-MM-DD HH:mm:ss Z"); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
 func BenchmarkNewMoment_CurrentTime(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		gomoment.NewMoment()
+		if _, err := gomoment.NewMoment(); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -419,7 +425,9 @@ func BenchmarkNewMoment_ParseString(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		gomoment.NewMoment(dateStr)
+		if _, err := gomoment.NewMoment(dateStr); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 

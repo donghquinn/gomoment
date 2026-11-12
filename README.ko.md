@@ -2,6 +2,7 @@
 
 [English](./README.md) | **한국어**
 
+[![Test](https://github.com/donghquinn/gomoment/actions/workflows/test.yml/badge.svg)](https://github.com/donghquinn/gomoment/actions/workflows/test.yml)
 [![Go Version](https://img.shields.io/badge/go-1.12+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/donghquinn/gomoment.svg)](https://pkg.go.dev/github.com/donghquinn/gomoment)
@@ -257,10 +258,29 @@ go test -run '^$' -bench . -benchmem
 
 기여를 환영합니다. 자유롭게 Pull Request를 보내 주십시오.
 
+PR을 보내기 전에 CI와 같은 검사를 실행하십시오.
+
 ```bash
 go vet ./...
+golangci-lint run
 go test -race ./...
 ```
+
+GitHub Actions는 `main`/`dev` 브랜치 push와 모든 Pull Request마다 `.github/workflows/test.yml`을 실행합니다. Go 1.12(`go.mod`의 최소 버전), 직전 안정 버전, 최신 안정 버전에서 테스트하고 `golangci-lint`를 실행합니다.
+
+## 릴리스
+
+`.github/workflows/release.yml`은 전체 테스트 워크플로를 실행한 뒤, 자동 생성된 릴리스 노트로 GitHub Release를 만들고 Go 모듈 프록시에 버전을 등록합니다. 시작하는 방법은 두 가지입니다.
+
+- **GitHub에서 실행(권장)** — Actions → Release → `main`에서 Run workflow를 누르고 `patch`, `minor`, `major` 중 하나를 고릅니다. 워크플로가 최신 `vX.Y.Z` 태그를 올리고 새 태그를 직접 push합니다.
+- **태그로 실행** — semver 태그를 push합니다. `v1.3.0-rc.1`처럼 접미사가 붙은 태그는 pre-release로 게시합니다.
+
+  ```bash
+  git tag v1.2.0
+  git push origin v1.2.0
+  ```
+
+v2 이상으로 올리는 `major` 릴리스는 Go 모듈 규칙에 따라 `go.mod`의 모듈 경로가 `/v2`(또는 해당 메이저 버전)로 끝나기 전까지 의도적으로 실패합니다.
 
 ## 라이선스
 
