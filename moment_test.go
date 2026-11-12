@@ -1,6 +1,7 @@
 package gomoment_test
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -10,8 +11,8 @@ import (
 
 // Test data for consistent testing
 var (
-	testTime      = time.Date(2023, 5, 15, 14, 30, 45, 0, time.UTC)
-	testTimeLocal = time.Date(2023, 5, 15, 14, 30, 45, 0, time.Local)
+	testTime       = time.Date(2023, 5, 15, 14, 30, 45, 0, time.UTC)
+	testTimeLocal  = time.Date(2023, 5, 15, 14, 30, 45, 0, time.Local)
 	testTimeWithMS = time.Date(2023, 5, 15, 14, 30, 45, 123000000, time.UTC)
 )
 
@@ -20,7 +21,7 @@ func TestNewMoment_NoArgs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewMoment() failed: %v", err)
 	}
-	
+
 	// Should be close to current time (within 1 second)
 	now := time.Now()
 	diff := now.Sub(moment.Time())
@@ -37,7 +38,7 @@ func TestNewMoment_WithTime(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewMoment(time.Time) failed: %v", err)
 	}
-	
+
 	if !moment.Time().Equal(testTime) {
 		t.Errorf("NewMoment(time.Time) = %v, want %v", moment.Time(), testTime)
 	}
@@ -96,11 +97,11 @@ func TestNewMoment_WithString(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("NewMoment(%q) failed: %v", tt.input, err)
 			}
-			
+
 			if !moment.Time().Equal(tt.wantTime) {
 				t.Errorf("NewMoment(%q) = %v, want %v", tt.input, moment.Time(), tt.wantTime)
 			}
@@ -113,7 +114,7 @@ func TestNewMoment_InvalidArgType(t *testing.T) {
 	if err == nil {
 		t.Error("NewMoment(int) expected error, got nil")
 	}
-	
+
 	expectedMsg := "unsupported argument type"
 	if !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("NewMoment(int) error = %v, want to contain %q", err, expectedMsg)
@@ -122,7 +123,7 @@ func TestNewMoment_InvalidArgType(t *testing.T) {
 
 func TestNow(t *testing.T) {
 	moment := gomoment.Now()
-	
+
 	// Should be close to current time (within 1 second)
 	now := time.Now()
 	diff := now.Sub(moment.Time())
@@ -136,7 +137,7 @@ func TestNow(t *testing.T) {
 
 func TestFormat_BasicTokens(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	tests := []struct {
 		name   string
 		format string
@@ -157,10 +158,10 @@ func TestFormat_BasicTokens(t *testing.T) {
 		{"Seconds zero-padded", "ss", "45"},
 		{"Seconds", "s", "45"},
 		{"Milliseconds", "SSS", "000"},
-		{"Timezone offset", "ZZ", "+0000"}, // UTC
+		{"Timezone offset", "ZZ", "+0000"},            // UTC
 		{"Timezone offset with colon", "Z", "+00:00"}, // UTC
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := moment.Format(tt.format)
@@ -176,7 +177,7 @@ func TestFormat_BasicTokens(t *testing.T) {
 
 func TestFormat_CommonFormats(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	tests := []struct {
 		name   string
 		format string
@@ -191,7 +192,7 @@ func TestFormat_CommonFormats(t *testing.T) {
 		{"Full format with timezone", "YYYY-MM-DD HH:mm:ss Z", "2023-05-15 14:30:45 +00:00"},
 		{"Custom format", "D MM YYYY h:mm", "15 05 2023 2:30"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := moment.Format(tt.format)
@@ -207,7 +208,7 @@ func TestFormat_CommonFormats(t *testing.T) {
 
 func TestFormat_InvalidTokens(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	tests := []struct {
 		name   string
 		format string
@@ -215,15 +216,16 @@ func TestFormat_InvalidTokens(t *testing.T) {
 		{"Single invalid token", "YYYY-QQ-DD"},
 		{"Multiple invalid tokens", "INVALID-FORMAT"},
 		{"Mixed valid and invalid", "YYYY-XX-MM-YY"},
+		{"Unsupported month name", "MMM DD, YYYY"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := moment.Format(tt.format)
 			if err == nil {
 				t.Errorf("Format(%q) expected error, got nil", tt.format)
 			}
-			
+
 			expectedMsg := "unsupported format tokens"
 			if !strings.Contains(err.Error(), expectedMsg) {
 				t.Errorf("Format(%q) error = %v, want to contain %q", tt.format, err, expectedMsg)
@@ -234,7 +236,7 @@ func TestFormat_InvalidTokens(t *testing.T) {
 
 func TestFormat_EdgeCases(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	tests := []struct {
 		name   string
 		format string
@@ -245,7 +247,7 @@ func TestFormat_EdgeCases(t *testing.T) {
 		{"Repeated tokens", "YYYY-YYYY", "2023-2023"},
 		{"Mixed separators", "YYYY/MM-DD", "2023/05-15"},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result, err := moment.Format(tt.format)
@@ -259,12 +261,54 @@ func TestFormat_EdgeCases(t *testing.T) {
 	}
 }
 
+func TestFormat_Regressions(t *testing.T) {
+	afternoon, _ := gomoment.NewMoment(testTimeWithMS)
+	midnight, _ := gomoment.NewMoment(time.Date(2023, 5, 15, 0, 5, 9, 0, time.UTC))
+	kst := time.FixedZone("KST", 9*60*60)
+	seoul, _ := gomoment.NewMoment(time.Date(2023, 5, 15, 9, 0, 0, 0, kst))
+	newYork := time.FixedZone("EDT", -4*60*60)
+	ny, _ := gomoment.NewMoment(time.Date(2023, 5, 15, 9, 0, 0, 0, newYork))
+
+	tests := []struct {
+		name   string
+		moment *gomoment.Moment
+		format string
+		want   string
+	}{
+		{"AM/PM upper", afternoon, "h:mm A", "2:30 PM"},
+		{"AM/PM lower", afternoon, "h:mm a", "2:30 pm"},
+		{"AM at midnight", midnight, "hh:mm A", "12:05 AM"},
+		{"Milliseconds standalone", afternoon, "SSS", "123"},
+		{"Milliseconds after dot", afternoon, "HH:mm:ss.SSS", "14:30:45.123"},
+		{"Non-padded 24h hour", midnight, "H:m:s", "0:5:9"},
+		{"Literal digits are kept", afternoon, "YYYY 01 05", "2023 01 05"},
+		{"Escaped text", afternoon, "[Today is] YYYY-MM-DD", "Today is 2023-05-15"},
+		{"Escaped tokens", afternoon, "[YYYY] YYYY", "YYYY 2023"},
+		{"Unclosed bracket", afternoon, "[YYYY", "[2023"},
+		{"Non-ASCII literals", afternoon, "YYYY년 M월 D일", "2023년 5월 15일"},
+		{"Positive offset", seoul, "Z ZZ", "+09:00 +0900"},
+		{"Negative offset", ny, "Z ZZ", "-04:00 -0400"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := tt.moment.Format(tt.format)
+			if err != nil {
+				t.Fatalf("Format(%q) failed: %v", tt.format, err)
+			}
+			if got != tt.want {
+				t.Errorf("Format(%q) = %q, want %q", tt.format, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestMust_Success(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	result := moment.Must("YYYY-MM-DD")
 	expected := "2023-05-15"
-	
+
 	if result != expected {
 		t.Errorf("Must(%q) = %q, want %q", "YYYY-MM-DD", result, expected)
 	}
@@ -272,13 +316,13 @@ func TestMust_Success(t *testing.T) {
 
 func TestMust_Panic(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	defer func() {
 		if r := recover(); r == nil {
 			t.Error("Must with invalid format should panic")
 		}
 	}()
-	
+
 	moment.Must("INVALID-FORMAT")
 }
 
@@ -315,7 +359,7 @@ func TestParse_VariousFormats(t *testing.T) {
 			wantErr: true,
 		},
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			moment, err := gomoment.Parse(tt.input)
@@ -325,11 +369,11 @@ func TestParse_VariousFormats(t *testing.T) {
 				}
 				return
 			}
-			
+
 			if err != nil {
 				t.Fatalf("Parse(%q) failed: %v", tt.input, err)
 			}
-			
+
 			if !moment.Time().Equal(tt.wantTime) {
 				t.Errorf("Parse(%q) = %v, want %v", tt.input, moment.Time(), tt.wantTime)
 			}
@@ -339,7 +383,7 @@ func TestParse_VariousFormats(t *testing.T) {
 
 func TestTime(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	if !moment.Time().Equal(testTime) {
 		t.Errorf("Time() = %v, want %v", moment.Time(), testTime)
 	}
@@ -349,7 +393,7 @@ func TestTime(t *testing.T) {
 func BenchmarkFormat_Simple(b *testing.B) {
 	moment, _ := gomoment.NewMoment(testTime)
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		moment.Format("YYYY-MM-DD")
 	}
@@ -358,7 +402,7 @@ func BenchmarkFormat_Simple(b *testing.B) {
 func BenchmarkFormat_Complex(b *testing.B) {
 	moment, _ := gomoment.NewMoment(testTime)
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		moment.Format("YYYY-MM-DD HH:mm:ss Z")
 	}
@@ -373,7 +417,7 @@ func BenchmarkNewMoment_CurrentTime(b *testing.B) {
 func BenchmarkNewMoment_ParseString(b *testing.B) {
 	dateStr := "2023-05-15 14:30:45"
 	b.ResetTimer()
-	
+
 	for i := 0; i < b.N; i++ {
 		gomoment.NewMoment(dateStr)
 	}
@@ -385,61 +429,82 @@ func BenchmarkNow(b *testing.B) {
 	}
 }
 
+func BenchmarkStdlibFormat_Complex(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		testTime.Format("2006-01-02 15:04:05 -07:00")
+	}
+}
+
 // Example tests for documentation
 func ExampleNewMoment() {
-	// Current time
-	moment, _ := gomoment.NewMoment()
-	formatted, _ := moment.Format("YYYY-MM-DD")
-	_ = formatted // 2023-05-15 (or current date)
+	moment, _ := gomoment.NewMoment(time.Date(2023, 5, 15, 14, 30, 45, 0, time.UTC))
+	fmt.Println(moment.Must("YYYY-MM-DD"))
+	// Output: 2023-05-15
 }
 
 func ExampleNewMoment_withString() {
 	moment, _ := gomoment.NewMoment("2023-05-15 14:30:45")
-	formatted, _ := moment.Format("MM/DD/YYYY")
-	_ = formatted // 05/15/2023
+	fmt.Println(moment.Must("MM/DD/YYYY"))
+	// Output: 05/15/2023
 }
 
 func ExampleMoment_Format() {
 	moment, _ := gomoment.NewMoment("2023-05-15 14:30:45")
-	
+
 	iso, _ := moment.Format("YYYY-MM-DD")
-	_ = iso // 2023-05-15
-	
+	fmt.Println(iso)
+
 	us, _ := moment.Format("MM/DD/YYYY")
-	_ = us // 05/15/2023
-	
-	time24, _ := moment.Format("HH:mm")
-	_ = time24 // 14:30
+	fmt.Println(us)
+
+	clock, _ := moment.Format("h:mm A")
+	fmt.Println(clock)
+
+	escaped, _ := moment.Format("[Date:] YYYY-MM-DD")
+	fmt.Println(escaped)
+	// Output:
+	// 2023-05-15
+	// 05/15/2023
+	// 2:30 PM
+	// Date: 2023-05-15
 }
 
 func ExampleMoment_Must() {
 	moment, _ := gomoment.NewMoment("2023-05-15")
-	formatted := moment.Must("YYYY-MM-DD")
-	_ = formatted // 2023-05-15
+	fmt.Println(moment.Must("YYYY-MM-DD"))
+	// Output: 2023-05-15
 }
+
+func ExampleMoment_TZ() {
+	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z")
+	kst, _ := moment.TZ("KST")
+	fmt.Println(kst.Must("YYYY-MM-DD HH:mm Z"))
+	// Output: 2023-05-15 23:30 +09:00
+}
+
 func TestTZ_CommonTimezones(t *testing.T) {
 	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z") // UTC time
-	
+
 	tests := []struct {
 		name     string
 		timezone string
 		wantHour int
 	}{
-		{"Korea Standard Time", "KST", 23},  // UTC+9
-		{"Japan Standard Time", "JST", 23},  // UTC+9
-		{"Eastern Time", "EST", 10},          // UTC-4 (EDT in May)
-		{"Pacific Time", "PST", 7},           // UTC-7 (PDT in May)
-		{"UTC", "UTC", 14},                   // UTC+0
-		{"GMT", "GMT", 14},                   // UTC+0
+		{"Korea Standard Time", "KST", 23}, // UTC+9
+		{"Japan Standard Time", "JST", 23}, // UTC+9
+		{"Eastern Time", "EST", 10},        // UTC-4 (EDT in May)
+		{"Pacific Time", "PST", 7},         // UTC-7 (PDT in May)
+		{"UTC", "UTC", 14},                 // UTC+0
+		{"GMT", "GMT", 14},                 // UTC+0
 	}
-	
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tzMoment, err := moment.TZ(tt.timezone)
 			if err != nil {
 				t.Fatalf("TZ(%q) failed: %v", tt.timezone, err)
 			}
-			
+
 			// Check that timezone conversion worked
 			if tz := tzMoment.Time().Location().String(); tz == "" {
 				t.Errorf("TZ(%q) did not set timezone", tt.timezone)
@@ -450,12 +515,12 @@ func TestTZ_CommonTimezones(t *testing.T) {
 
 func TestTZ_FullTimezoneNames(t *testing.T) {
 	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z") // UTC time
-	
+
 	tzMoment, err := moment.TZ("America/New_York")
 	if err != nil {
 		t.Fatalf("TZ(America/New_York) failed: %v", err)
 	}
-	
+
 	if loc := tzMoment.Time().Location().String(); loc != "America/New_York" {
 		t.Errorf("TZ(America/New_York) location = %v, want America/New_York", loc)
 	}
@@ -463,12 +528,12 @@ func TestTZ_FullTimezoneNames(t *testing.T) {
 
 func TestTZ_InvalidTimezone(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	_, err := moment.TZ("INVALID/Timezone")
 	if err == nil {
 		t.Error("TZ with invalid timezone should return error")
 	}
-	
+
 	expectedMsg := "invalid timezone"
 	if !strings.Contains(err.Error(), expectedMsg) {
 		t.Errorf("TZ error = %v, want to contain %q", err, expectedMsg)
@@ -477,9 +542,9 @@ func TestTZ_InvalidTimezone(t *testing.T) {
 
 func TestUTC(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTimeLocal)
-	
+
 	utcMoment := moment.UTC()
-	
+
 	if loc := utcMoment.Time().Location(); loc != time.UTC {
 		t.Errorf("UTC() location = %v, want UTC", loc)
 	}
@@ -487,9 +552,9 @@ func TestUTC(t *testing.T) {
 
 func TestLocal(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime) // UTC time
-	
+
 	localMoment := moment.Local()
-	
+
 	if loc := localMoment.Time().Location(); loc != time.Local {
 		t.Errorf("Local() location = %v, want Local", loc)
 	}
@@ -497,13 +562,13 @@ func TestLocal(t *testing.T) {
 
 func TestZone(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	name, offset := moment.Zone()
-	
+
 	if name == "" {
 		t.Error("Zone() returned empty timezone name")
 	}
-	
+
 	// UTC should have 0 offset
 	if testTime.Location() == time.UTC && offset != 0 {
 		t.Errorf("Zone() offset = %d, want 0 for UTC", offset)
@@ -512,9 +577,9 @@ func TestZone(t *testing.T) {
 
 func TestOffset(t *testing.T) {
 	moment, _ := gomoment.NewMoment(testTime)
-	
+
 	offset := moment.Offset()
-	
+
 	// UTC should have 0 offset
 	if testTime.Location() == time.UTC && offset != 0 {
 		t.Errorf("Offset() = %d, want 0 for UTC", offset)
@@ -524,22 +589,21 @@ func TestOffset(t *testing.T) {
 func TestTimezoneChaining(t *testing.T) {
 	// Test chaining timezone conversions with formatting
 	moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z")
-	
+
 	// Convert to KST and format
 	kstMoment, err := moment.TZ("KST")
 	if err != nil {
 		t.Fatalf("TZ(KST) failed: %v", err)
 	}
-	
+
 	formatted, err := kstMoment.Format("YYYY-MM-DD HH:mm")
 	if err != nil {
 		t.Fatalf("Format after TZ failed: %v", err)
 	}
-	
+
 	// Should show Korean time (UTC+9)
 	expected := "2023-05-15 23:30" // 14:30 UTC + 9 hours
 	if formatted != expected {
 		t.Errorf("KST formatted time = %q, want %q", formatted, expected)
 	}
 }
-

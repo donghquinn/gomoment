@@ -1,20 +1,26 @@
 # GoMoment
 
-A Go library for parsing, validating, manipulating, and formatting dates, inspired by [moment.js](https://momentjs.com/).
-
-If you're tired of Go's unusual date formatting with reference time `2006-01-02 15:04:05` and prefer the familiar moment.js syntax, GoMoment is for you!
+**English** | [한국어](./README.ko.md)
 
 [![Go Version](https://img.shields.io/badge/go-1.12+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/donghquinn/gomoment.svg)](https://pkg.go.dev/github.com/donghquinn/gomoment)
+
+A Go library for parsing, formatting, and converting dates between timezones with [moment.js](https://momentjs.com/)-style format tokens, so you can write `YYYY-MM-DD` instead of Go's reference time `2006-01-02`.
+
+```go
+moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z")
+kst, _ := moment.TZ("KST")
+fmt.Println(kst.Must("YYYY-MM-DD HH:mm Z")) // 2023-05-15 23:30 +09:00
+```
 
 ## Features
 
-- 🕐 **Familiar syntax** - Use moment.js-like format tokens (`YYYY`, `MM`, `DD`, etc.)
-- 🌍 **Timezone support** - Convert between timezones with `TZ("KST")`, `UTC()`, `Local()`
-- 📅 **Flexible parsing** - Parse various date string formats automatically
-- 🛡️ **Type safe** - Full Go type safety with error handling
-- 🚀 **Zero dependencies** - Uses only Go standard library
-- ⚡ **Lightweight** - Minimal footprint
+- **moment.js-style tokens** — `YYYY`, `MM`, `DD`, `HH`, `mm`, `ss`, `SSS`, `A`, `Z`, ...
+- **Timezone conversion** — `TZ("KST")`, `TZ("America/New_York")`, `UTC()`, `Local()`
+- **Flexible parsing** — common date string formats are detected automatically
+- **Strict validation** — unknown tokens return an error instead of silently producing garbage
+- **Zero dependencies** — standard library only
 
 ## Installation
 
@@ -29,22 +35,22 @@ package main
 
 import (
     "fmt"
+
     "github.com/donghquinn/gomoment"
 )
 
 func main() {
-    // Current time
     now, err := gomoment.NewMoment()
     if err != nil {
         panic(err)
     }
-    
+
     formatted, err := now.Format("YYYY-MM-DD HH:mm:ss")
     if err != nil {
         panic(err)
     }
-    
-    fmt.Println(formatted) // 2025-08-06 14:30:45
+
+    fmt.Println(formatted) // e.g. 2025-08-06 14:30:45
 }
 ```
 
@@ -62,6 +68,8 @@ moment := gomoment.Now()
 #### From String
 ```go
 moment, err := gomoment.NewMoment("2025-08-06 14:30:45")
+// or
+moment, err := gomoment.Parse("2025-08-06 14:30:45")
 ```
 
 #### From time.Time
@@ -70,9 +78,9 @@ t := time.Now()
 moment, err := gomoment.NewMoment(t)
 ```
 
-### Formatting
+Any other argument type returns an error.
 
-GoMoment supports moment.js-like format tokens:
+### Formatting
 
 | Token | Description | Example |
 |-------|-------------|---------|
@@ -82,47 +90,51 @@ GoMoment supports moment.js-like format tokens:
 | `M` | Month (1-12) | 8 |
 | `DD` | Day of month (01-31) | 06 |
 | `D` | Day of month (1-31) | 6 |
-| `HH` | Hour 24-format (00-23) | 14 |
-| `H` | Hour 24-format (0-23) | 14 |
-| `hh` | Hour 12-format (01-12) | 02 |
-| `h` | Hour 12-format (1-12) | 2 |
-| `mm` | Minutes (00-59) | 30 |
-| `m` | Minutes (0-59) | 30 |
-| `ss` | Seconds (00-59) | 45 |
-| `s` | Seconds (0-59) | 45 |
-| `SSS` | Milliseconds | 123 |
+| `HH` | Hour, 24-hour clock (00-23) | 09 |
+| `H` | Hour, 24-hour clock (0-23) | 9 |
+| `hh` | Hour, 12-hour clock (01-12) | 02 |
+| `h` | Hour, 12-hour clock (1-12) | 2 |
+| `mm` | Minutes (00-59) | 05 |
+| `m` | Minutes (0-59) | 5 |
+| `ss` | Seconds (00-59) | 07 |
+| `s` | Seconds (0-59) | 7 |
+| `SSS` | Milliseconds (000-999) | 123 |
 | `A` | AM/PM | PM |
 | `a` | am/pm | pm |
-| `ZZ` | Timezone offset | +0900 |
-| `Z` | Timezone offset with colon | +09:00 |
+| `ZZ` | UTC offset | +0900 |
+| `Z` | UTC offset with colon | +09:00 |
+
+Formatting rules:
+
+- A token is a run of one repeated letter. A run that is not in the table (for example `MMM` or `DDDD`) is an error.
+- Text inside square brackets is printed as-is: `[Today is] YYYY-MM-DD` → `Today is 2025-08-06`.
+- Characters other than ASCII letters (digits, punctuation, spaces, Korean text, ...) are printed as-is.
 
 #### Examples
 
 ```go
 moment, _ := gomoment.NewMoment("2025-08-06 14:30:45")
 
-// Different formats
-fmt.Println(moment.Format("YYYY-MM-DD"))           // 2025-08-06
-fmt.Println(moment.Format("MM/DD/YYYY"))           // 08/06/2025
-fmt.Println(moment.Format("YYYY-MM-DD HH:mm:ss"))  // 2025-08-06 14:30:45
-fmt.Println(moment.Format("MMM DD, YYYY"))         // Aug 06, 2025
-fmt.Println(moment.Format("h:mm A"))               // 2:30 PM
+fmt.Println(moment.Must("YYYY-MM-DD"))          // 2025-08-06
+fmt.Println(moment.Must("MM/DD/YYYY"))          // 08/06/2025
+fmt.Println(moment.Must("YYYY-MM-DD HH:mm:ss")) // 2025-08-06 14:30:45
+fmt.Println(moment.Must("h:mm A"))              // 2:30 PM
+fmt.Println(moment.Must("[Date:] YYYY.MM.DD"))  // Date: 2025.08.06
+fmt.Println(moment.Must("YYYY년 M월 D일"))        // 2025년 8월 6일
 ```
 
-### Safe Methods with Must
+### Must
 
-For cases where you want to panic on errors instead of handling them:
+`Must` works like `Format` but panics on an invalid format string. Use it only with format strings you know are valid, such as constants:
 
 ```go
 moment := gomoment.Now()
 formatted := moment.Must("YYYY-MM-DD HH:mm:ss")
-// or
-formatted := moment.MustFormat("YYYY-MM-DD HH:mm:ss")
 ```
 
 ### Supported Input Formats
 
-GoMoment can parse various date string formats automatically:
+`NewMoment(string)` and `Parse` try these layouts in order (shown in Go reference-time notation):
 
 - `2006-01-02`
 - `2006/01/02`
@@ -137,44 +149,40 @@ GoMoment can parse various date string formats automatically:
 - `01-02-2006 15:04:05`
 - `15:04:05`
 
+Strings without an explicit offset are interpreted as UTC. Use `TZ` to convert the result to another timezone.
+
 ### Getting the underlying time.Time
 
 ```go
 moment, _ := gomoment.NewMoment()
-t := moment.Time() // Returns time.Time
+t := moment.Time() // time.Time
 ```
 
 ### Timezone Support
 
-GoMoment provides comprehensive timezone support with convenient methods:
+Every conversion returns a new `Moment`; the original is never modified.
 
-#### Convert to Specific Timezone
+#### Convert to a Specific Timezone
 
 ```go
-// Create moment from UTC time
 moment, _ := gomoment.NewMoment("2023-05-15T14:30:45Z")
 
-// Convert UTC to Korean time - exactly as requested!
 kstMoment, _ := moment.TZ("KST")
-result, _ := kstMoment.Format("YYYY-MM-DD")
-fmt.Println(result) // 2023-05-15
+fmt.Println(kstMoment.Must("YYYY-MM-DD HH:mm")) // 2023-05-15 23:30
 
-// With time included
-timeResult, _ := kstMoment.Format("YYYY-MM-DD HH:mm")
-fmt.Println(timeResult) // 2023-05-15 23:30 (14:30 UTC + 9 hours)
-
-// Other timezone examples
 estMoment, _ := moment.TZ("EST")
-fmt.Println(estMoment.Must("YYYY-MM-DD HH:mm")) // 2023-05-15 10:30
+fmt.Println(estMoment.Must("YYYY-MM-DD HH:mm")) // 2023-05-15 10:30 (EDT in May)
 
-// Use full timezone names
+// IANA timezone names also work
 nyMoment, _ := moment.TZ("America/New_York")
 tokyoMoment, _ := moment.TZ("Asia/Tokyo")
 ```
 
 #### Supported Timezone Abbreviations
 
-| Abbreviation | Full Name | Description |
+Abbreviations are case-insensitive. Each one maps to an IANA location, so daylight saving time is applied where that location observes it (for example, `EST` follows New York and becomes EDT in summer).
+
+| Abbreviation | IANA Name | Description |
 |--------------|-----------|-------------|
 | `UTC` | UTC | Coordinated Universal Time |
 | `GMT` | GMT | Greenwich Mean Time |
@@ -187,129 +195,72 @@ tokyoMoment, _ := moment.TZ("Asia/Tokyo")
 | `CET` | Europe/Paris | Central European Time |
 | `IST` | Asia/Kolkata | India Standard Time |
 
-#### Quick Timezone Conversions
+#### Other Timezone Helpers
 
 ```go
 moment, _ := gomoment.NewMoment()
 
-// Convert to UTC
-utcMoment := moment.UTC()
+utcMoment := moment.UTC()     // convert to UTC
+localMoment := moment.Local() // convert to the local timezone
 
-// Convert to local timezone
-localMoment := moment.Local()
-
-// Get timezone information
-name, offset := moment.Zone()
-fmt.Printf("Timezone: %s, Offset: %d seconds\n", name, offset)
-
-// Get just the offset
-offset := moment.Offset() // Returns seconds east of UTC
-```
-
-#### Chaining Operations
-
-```go
-// Chain timezone conversion with formatting
-moment, _ := gomoment.NewMoment()
-kstMoment, _ := moment.TZ("KST")
-formatted, _ := kstMoment.Format("YYYY-MM-DD HH:mm") // Korean time formatted
+name, offset := moment.Zone() // e.g. "KST", 32400
+offset = moment.Offset()      // seconds east of UTC
 ```
 
 ## Error Handling
 
-GoMoment provides proper error handling for invalid inputs:
-
 ```go
 // Invalid date string
-moment, err := gomoment.NewMoment("invalid-date")
-if err != nil {
-    fmt.Println("Error:", err) // Error: invalid time format: invalid-date
-}
+_, err := gomoment.NewMoment("invalid-date")
+fmt.Println(err)
+// unable to parse date string "invalid-date" (supported formats: YYYY-MM-DD, YYYY/MM/DD, RFC3339, etc.)
 
-// Invalid format token
-moment, _ := gomoment.NewMoment()
-formatted, err := moment.Format("INVALID-TOKEN")
-if err != nil {
-    fmt.Println("Error:", err) // Error: invalid token: [INVALID-TOKEN]
-}
+// Unsupported format tokens
+moment := gomoment.Now()
+_, err = moment.Format("YYYY-QQ-MMM")
+fmt.Println(err)
+// unsupported format tokens: [QQ MMM] (supported tokens: YYYY, YY, MM, M, DD, D, HH, H, hh, h, mm, m, ss, s, SSS, A, a, ZZ, Z)
+
+// Unknown timezone
+_, err = moment.TZ("Mars/Olympus")
+fmt.Println(err) // invalid timezone: Mars/Olympus
 ```
 
 ## Performance
 
-GoMoment is optimized for high performance with minimal overhead. Here are benchmark comparisons:
-
-### Benchmark Results
+`Format` writes the output in a single pass over the format string. It does not build an intermediate Go layout, so it typically makes 1–2 allocations per call.
 
 ```
 goos: darwin
 goarch: arm64
-pkg: github.com/donghquinn/gomoment  
-cpu: Apple M4
+cpu: Apple M5
 ```
 
-| Operation | GoMoment | Go time.Format | Improvement |
-|-----------|----------|----------------|-------------|
-| Simple Format (`YYYY-MM-DD`) | 1,338 ns/op | ~2,100 ns/op* | **~36% faster** |
-| Complex Format (`YYYY-MM-DD HH:mm:ss Z`) | 2,154 ns/op | ~2,800 ns/op* | **~23% faster** |
-| Current Time Creation | 71.8 ns/op | ~45 ns/op | Comparable |
-| String Parsing | 526 ns/op | ~800 ns/op* | **~34% faster** |
-| Now() Function | 55.1 ns/op | ~45 ns/op | Comparable |
+| Benchmark | ns/op | B/op | allocs/op |
+|-----------|------:|-----:|----------:|
+| `Format("YYYY-MM-DD")` | 54.6 | 16 | 1 |
+| `Format("YYYY-MM-DD HH:mm:ss Z")` | 130.7 | 80 | 2 |
+| stdlib `time.Format("2006-01-02 15:04:05 -07:00")` | 66.0 | 32 | 1 |
+| `NewMoment()` | 34.6 | 24 | 1 |
+| `NewMoment("2023-05-15 14:30:45")` | 169.0 | 312 | 9 |
+| `Now()` | 27.5 | 0 | 0 |
 
-_*Go standard library benchmarks are estimates for equivalent operations using `time.Parse()` and `time.Format()` with Go's reference time format._
+`Format` costs roughly 2× the standard library's `time.Format` for an equivalent layout. In exchange, you write moment.js tokens instead of Go's reference time.
 
-### Detailed Benchmarks
+Run the benchmarks yourself:
 
 ```bash
-BenchmarkFormat_Simple-10            	  931,495	      1,338 ns/op
-BenchmarkFormat_Complex-10           	  557,395	      2,154 ns/op
-BenchmarkNewMoment_CurrentTime-10    	16,686,684	        71.82 ns/op
-BenchmarkNewMoment_ParseString-10    	 2,288,235	       526.2 ns/op
-BenchmarkNow-10                      	21,712,726	        55.10 ns/op
-```
-
-### Performance Advantages
-
-- **🚀 Familiar API**: No need to remember Go's unusual `2006-01-02 15:04:05` reference time
-- **⚡ Pre-compiled Patterns**: Regex compilation happens once at package initialization
-- **🎯 Optimized Token Processing**: Efficient string replacement with conflict prevention
-- **📦 Zero External Dependencies**: Pure Go implementation with stdlib only
-- **🔄 Reusable Structures**: Package-level caching eliminates repeated allocations
-
-### Run Your Own Benchmarks
-
-Compare with standard library:
-```bash
-# GoMoment benchmarks
-go test -bench=.
-
-# Create your own comparison benchmarks
-go test -bench=. -benchmem
-```
-
-Example comparison test:
-```go
-func BenchmarkGoMomentVsStdlib(b *testing.B) {
-    // GoMoment
-    moment, _ := gomoment.NewMoment()
-    b.Run("GoMoment", func(b *testing.B) {
-        for i := 0; i < b.N; i++ {
-            moment.Format("YYYY-MM-DD")
-        }
-    })
-    
-    // Standard library
-    now := time.Now()
-    b.Run("Stdlib", func(b *testing.B) {
-        for i := 0; i < b.N; i++ {
-            now.Format("2006-01-02")
-        }
-    })
-}
+go test -run '^$' -bench . -benchmem
 ```
 
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+```bash
+go vet ./...
+go test -race ./...
+```
 
 ## License
 
