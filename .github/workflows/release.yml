@@ -1,0 +1,99 @@
+name: Release
+
+on:
+  # Pushing a tag such as v1.2.0 releases that tag.
+  push:
+    tags: ["v*"]
+  # Running the workflow manually from main bumps the latest tag and releases it.
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: Version component to bump
+        type: choice
+        options: [patch, minor, major]
+        default: patch
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  security:
+    uses: ./.github/workflows/security.yml
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+  release:
+    name: Release
+    needs: [test, security]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Determine tag
+        id: tag
+        env:
+          BUMP: ${{ inputs.bump }}
+        run: |
+          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+            echo "tag=$GITHUB_REF_NAME" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::Manual releases must be run from main (got $GITHUB_REF)"
+            exit 1
+          fi
+
+          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -v -- - | head -n1)
+          latest=${latest:-v0.0.0}
+          IFS=. read -r major minor patch <<< "${latest#v}"
+          case "$BUMP" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            *)     patch=$((patch + 1)) ;;
+          esac
+          tag="v${major}.${minor}.${patch}"
+
+          # Go modules v2+ need a /vN suffix in the module path.
+          module=$(awk '/^module /{print $2}' go.mod)
+          if [ "$major" -ge 2 ] && [ "${module##*/}" != "v${major}" ]; then
+            echo "::error::$tag requires the module path in go.mod to end with /v${major} (currently $module)"
+            exit 1
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "Release $tag"
+          git push origin "$tag"
+          echo "Bumped $latest -> $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          flags=""
+          case "$TAG" in *-*) flags="--prerelease" ;; esac
+          gh release create "$TAG" --verify-tag --generate-notes --title "$TAG" $flags
+
+      - name: Publish to Go module proxy
+        env:
+          TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          module=$(awk '/^module /{print $2}' go.mod)
+          curl -sSf "https://proxy.golang.org/${module}/@v/${TAG}.info"

@@ -1,0 +1,79 @@
+name: Security
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+  # New advisories are published without any code change, so scan weekly too.
+  schedule:
+    - cron: "0 0 * * 1"
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    name: govulncheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+
+      # Fails only when the code actually calls a vulnerable function,
+      # checked against the latest stable Go standard library.
+      - name: Run govulncheck
+        uses: golang/govulncheck-action@v1
+        with:
+          go-version-input: stable
+
+  gosec:
+    name: gosec
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Run gosec
+        uses: securego/gosec@master
+        with:
+          args: -fmt sarif -out gosec-results.sarif -stdout -verbose=text ./...
+
+      # Fork PRs get a read-only token and cannot upload results.
+      - name: Upload gosec results
+        if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: gosec-results.sarif
+          category: gosec
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: go
+          config-file: .github/codeql/codeql-config.yml
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v4
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v4
