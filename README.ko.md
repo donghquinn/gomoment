@@ -3,6 +3,7 @@
 [English](./README.md) | **한국어**
 
 [![Test](https://github.com/donghquinn/gomoment/actions/workflows/test.yml/badge.svg)](https://github.com/donghquinn/gomoment/actions/workflows/test.yml)
+[![Security](https://github.com/donghquinn/gomoment/actions/workflows/security.yml/badge.svg)](https://github.com/donghquinn/gomoment/actions/workflows/security.yml)
 [![Go Version](https://img.shields.io/badge/go-1.12+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/donghquinn/gomoment.svg)](https://pkg.go.dev/github.com/donghquinn/gomoment)
@@ -268,9 +269,14 @@ go test -race ./...
 
 GitHub Actions는 `main`/`dev` 브랜치 push와 모든 Pull Request마다 `.github/workflows/test.yml`을 실행합니다. Go 1.12(`go.mod`의 최소 버전), 직전 안정 버전, 최신 안정 버전에서 테스트하고 `golangci-lint`를 실행합니다.
 
+`.github/workflows/security.yml`은 같은 이벤트와 매주 월요일에 실행합니다. 코드가 바뀌지 않아도 새 보안 권고가 나오기 때문입니다.
+
+- **govulncheck**는 코드가 의존성이나 Go 표준 라이브러리의 알려진 취약 함수를 호출하면 실패합니다.
+- **gosec**과 **CodeQL**은 정적 보안 분석을 실행하고, 결과를 저장소의 Security 탭에 보고합니다.
+
 ## 릴리스
 
-`.github/workflows/release.yml`은 전체 테스트 워크플로를 실행한 뒤, 자동 생성된 릴리스 노트로 GitHub Release를 만들고 Go 모듈 프록시에 버전을 등록합니다. 시작하는 방법은 두 가지입니다.
+`.github/workflows/release.yml`은 테스트와 보안 워크플로를 실행한 뒤, 자동 생성된 릴리스 노트로 GitHub Release를 만들고 Go 모듈 프록시에 버전을 등록합니다. 시작하는 방법은 두 가지입니다.
 
 - **GitHub에서 실행(권장)** — Actions → Release → `main`에서 Run workflow를 누르고 `patch`, `minor`, `major` 중 하나를 고릅니다. 워크플로가 최신 `vX.Y.Z` 태그를 올리고 새 태그를 직접 push합니다.
 - **태그로 실행** — semver 태그를 push합니다. `v1.3.0-rc.1`처럼 접미사가 붙은 태그는 pre-release로 게시합니다.

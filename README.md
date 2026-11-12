@@ -3,6 +3,7 @@
 **English** | [한국어](./README.ko.md)
 
 [![Test](https://github.com/donghquinn/gomoment/actions/workflows/test.yml/badge.svg)](https://github.com/donghquinn/gomoment/actions/workflows/test.yml)
+[![Security](https://github.com/donghquinn/gomoment/actions/workflows/security.yml/badge.svg)](https://github.com/donghquinn/gomoment/actions/workflows/security.yml)
 [![Go Version](https://img.shields.io/badge/go-1.12+-blue.svg)](https://golang.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Go Reference](https://pkg.go.dev/badge/github.com/donghquinn/gomoment.svg)](https://pkg.go.dev/github.com/donghquinn/gomoment)
@@ -268,9 +269,14 @@ go test -race ./...
 
 GitHub Actions runs `.github/workflows/test.yml` on every push to `main`/`dev` and every pull request. It tests on Go 1.12 (the minimum in `go.mod`), the previous stable release, and the latest stable release, and runs `golangci-lint`.
 
+`.github/workflows/security.yml` runs on the same events and every Monday, since new advisories appear without code changes:
+
+- **govulncheck** fails if the code calls a known-vulnerable function in a dependency or the Go standard library.
+- **gosec** and **CodeQL** run static security analysis and report findings in the repository's Security tab.
+
 ## Releasing
 
-`.github/workflows/release.yml` runs the full test workflow, then creates a GitHub Release with generated notes and makes the version available on the Go module proxy. There are two ways to start it:
+`.github/workflows/release.yml` runs the test and security workflows, then creates a GitHub Release with generated notes and makes the version available on the Go module proxy. There are two ways to start it:
 
 - **From GitHub (recommended)** — Actions → Release → Run workflow on `main`, then pick `patch`, `minor`, or `major`. The workflow bumps the latest `vX.Y.Z` tag and pushes the new tag itself.
 - **From a tag** — push a semver tag. Tags with a suffix such as `v1.3.0-rc.1` are published as pre-releases.

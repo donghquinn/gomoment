@@ -21,7 +21,7 @@ var formatTokens = map[string]struct{}{
 }
 
 // supportedTokens is the token list shown in error messages.
-const supportedTokens = "YYYY, YY, MM, M, DD, D, HH, H, hh, h, mm, m, ss, s, SSS, A, a, ZZ, Z"
+const supportedTokens = "YYYY, YY, MM, M, DD, D, HH, H, hh, h, mm, m, ss, s, SSS, A, a, ZZ, Z" // #nosec G101 -- date format tokens, not credentials
 
 // Format returns a formatted time string using moment.js-like format tokens.
 //
